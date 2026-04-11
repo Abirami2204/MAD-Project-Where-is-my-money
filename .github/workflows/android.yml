@@ -38,7 +38,7 @@ jobs:
         # To send to MULTIPLE recipients, format your MAIL_TO secret with a comma!
         # Example MAIL_TO value: john@example.com,jane@example.com
         username: ${{ secrets.MAIL_USERNAME }}
-        password: ${{ secrets.MAIL_PASSWORD }}
+        password: ${{ secrets.MAIL_APP_PASSWORD }}
         subject: "New JustSpent Build Success! 🚀"
         to: ${{ secrets.MAIL_TO }}
         from: JustSpent Automated Builder
