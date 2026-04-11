@@ -28,22 +28,22 @@ jobs:
     - name: Rename APK
       run: mv app/build/outputs/apk/debug/app-debug.apk JustSpent-latest.apk
 
-    - name: Secure Zip the APK
-      run: zip -P "JustSpent" -q JustSpent-latest.zip JustSpent-latest.apk
+    - name: Upload APK to GitHub Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: JustSpent-APK
+        path: JustSpent-latest.apk
 
-    - name: Send APK via Email
+    - name: Send Summary via Email
       uses: dawidd6/action-send-mail@v3
       with:
         server_address: smtp.gmail.com
         server_port: 465
         secure: true
         # We use GitHub Secrets to hide your email credentials
-        # To send to MULTIPLE recipients, format your MAIL_TO secret with a comma!
-        # Example MAIL_TO value: john@example.com,jane@example.com
         username: ${{ secrets.MAIL_USERNAME }}
         password: ${{ secrets.MAIL_APP_PASSWORD }}
         subject: "New JustSpent Build Success! 🚀"
         to: ${{ secrets.MAIL_TO }}
         from: JustSpent Automated Builder
-        body: "A new version of JustSpent has been successfully built!\n\nDue to Gmail security policies blocking APK files, the file has been zipped and protected.\nPASSWORD TO UNZIP: JustSpent\n\nPlease find the ZIP attached."
-        attachments: JustSpent-latest.zip
+        body: "A new version of JustSpent has been successfully built!\n\nTo bypass Gmail's aggressive security filters, the APK has been securely uploaded to GitHub.\n\n⬇️ Download it here (Scroll to the Artifacts section at the bottom):\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
