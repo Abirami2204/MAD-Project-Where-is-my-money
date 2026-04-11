@@ -28,6 +28,9 @@ jobs:
     - name: Rename APK
       run: mv app/build/outputs/apk/debug/app-debug.apk JustSpent-latest.apk
 
+    - name: Secure Zip the APK
+      run: zip -P "JustSpent" -q JustSpent-latest.zip JustSpent-latest.apk
+
     - name: Send APK via Email
       uses: dawidd6/action-send-mail@v3
       with:
@@ -42,5 +45,5 @@ jobs:
         subject: "New JustSpent Build Success! 🚀"
         to: ${{ secrets.MAIL_TO }}
         from: JustSpent Automated Builder
-        body: "A new version of JustSpent has been successfully built from your latest commit.\n\nPlease find the APK attached."
-        attachments: JustSpent-latest.apk
+        body: "A new version of JustSpent has been successfully built!\n\nDue to Gmail security policies blocking APK files, the file has been zipped and protected.\nPASSWORD TO UNZIP: JustSpent\n\nPlease find the ZIP attached."
+        attachments: JustSpent-latest.zip
