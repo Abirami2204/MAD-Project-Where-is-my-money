@@ -9,6 +9,9 @@ jobs:
   build-and-email:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
     - uses: actions/checkout@v4
 
@@ -28,14 +31,19 @@ jobs:
     - name: Rename APK
       run: mv app/build/outputs/apk/debug/app-debug.apk JustSpent-latest.apk
 
-    - name: Upload APK to GitHub Artifacts
-      uses: actions/upload-artifact@v4
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
       with:
-        name: JustSpent-APK
-        path: JustSpent-latest.apk
+        tag_name: build-${{ github.run_number }}
+        name: Development Build #${{ github.run_number }}
+        files: JustSpent-latest.apk
+        draft: false
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Send Summary via Email
-      uses: dawidd6/action-send-mail@v3
+      uses: dawidd6/action-send-mail@v3 
       with:
         server_address: smtp.gmail.com
         server_port: 465
@@ -46,4 +54,4 @@ jobs:
         subject: "New JustSpent Build Success! 🚀"
         to: ${{ secrets.MAIL_TO }}
         from: JustSpent Automated Builder
-        body: "A new version of JustSpent has been successfully built!\n\nTo bypass Gmail's aggressive security filters, the APK has been securely uploaded to GitHub.\n\n⬇️ Download it here (Scroll to the Artifacts section at the bottom):\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        body: "A new version of JustSpent has been successfully built!\n\nTo ensure easy downloading directly on your mobile device, the APK has been published as a GitHub Release.\n\n⬇️ Download it here (Click 'Assets' at the bottom of the release and tap the .apk file):\nhttps://github.com/${{ github.repository }}/releases/tag/build-${{ github.run_number }}"
