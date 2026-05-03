@@ -57,7 +57,7 @@ android {
 
 dependencies {
     // Compose BOM
-    val composeBom = platform("androidx.compose:compose-bom:2024.01.00")
+    val composeBom = platform("androidx.compose:compose-bom:2024.04.01")
     implementation(composeBom)
 
     // Compose UI
@@ -67,6 +67,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.activity:activity-compose:1.8.2")
+    
+    // Explicitly add animation/foundation to ensure BOM versions are used properly
+    implementation("androidx.compose.animation:animation")
+    implementation("androidx.compose.foundation:foundation")
 
     // Lifecycle
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
@@ -86,6 +90,9 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Navigation
+    implementation("androidx.navigation:navigation-compose:2.7.7")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")

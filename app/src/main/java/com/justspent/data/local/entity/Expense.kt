@@ -12,6 +12,8 @@ import androidx.room.PrimaryKey
  * @property note An optional user-provided note.
  * @property sourceApp The UPI app that triggered the capture (e.g., "Google Pay").
  * @property isCredit True if this is an incoming transaction (credit), false if outgoing (debit/expense).
+ * @property recipient The person or entity being paid (for debits) or the source (for credits).
+ * @property smsId Optional unique ID from the SMS provider to prevent duplicate syncs.
  * @property timestamp The time the expense was recorded, in epoch milliseconds.
  */
 @Entity(tableName = "expenses")
@@ -23,6 +25,8 @@ data class Expense(
     val note: String = "",
     val sourceApp: String = "",
     val isCredit: Boolean = false,
+    val recipient: String = "",
+    val smsId: String? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 

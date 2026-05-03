@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.justspent.data.local.entity.CategoryTotal
@@ -83,9 +84,13 @@ private val categoryEmojis = mapOf(
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
-    onManualEntry: () -> Unit = {}
+    onManualEntry: () -> Unit = {},
+    onViewHistory: () -> Unit = {}
 ) {
     val totalSpending by viewModel.totalSpending.collectAsState(initial = 0.0)
+    val totalIncome by viewModel.totalIncome.collectAsState(initial = 0.0)
+    val netBalance by viewModel.netBalance.collectAsState(initial = 0.0)
+    
     val categoryTotals by viewModel.categoryTotals.collectAsState(initial = emptyList())
     val groupedExpenses by viewModel.groupedExpenses.collectAsState(initial = emptyMap())
     val allExpenses by viewModel.allExpenses.collectAsState(initial = emptyList())
@@ -157,8 +162,8 @@ fun DashboardScreen(
                 ) 
             }
 
-            // ─── Hero Card: Total Spent ───
-            item { TotalSpentCard(totalSpending, allExpenses.size, isDark) }
+            // ─── Hero Card: Net Balance ───
+            item { TotalSpentCard(netBalance, totalSpending, totalIncome, allExpenses.size, isDark) }
 
             // ─── Category Breakdown ───
             if (categoryTotals.isNotEmpty()) {
@@ -168,12 +173,24 @@ fun DashboardScreen(
             // ─── Recent Transactions ───
             if (groupedExpenses.isNotEmpty()) {
                 item {
-                    Text(
-                        text = "Recent Transactions",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Recent Transactions",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "View All",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { onViewHistory() }
+                        )
+                    }
                 }
 
                 groupedExpenses.forEach { (dayLabel, expenses) ->
@@ -270,7 +287,13 @@ private fun HeaderSection(
 // HERO CARD
 // ═══════════════════════════════════════════════════════════
 @Composable
-private fun TotalSpentCard(totalSpending: Double, transactionCount: Int, isDark: Boolean) {
+private fun TotalSpentCard(
+    netBalance: Double,
+    totalSpending: Double,
+    totalIncome: Double,
+    transactionCount: Int,
+    isDark: Boolean
+) {
     val gradientStart = if (isDark) DarkGradientStart else GradientStart
     val gradientEnd = if (isDark) DarkGradientEnd else GradientEnd
 
@@ -293,32 +316,68 @@ private fun TotalSpentCard(totalSpending: Double, transactionCount: Int, isDark:
         ) {
             Column {
                 Text(
-                    text = "Current Total Spent",
+                    text = "Total Balance",
                     style = MaterialTheme.typography.labelLarge,
                     color = Color.White.copy(alpha = 0.75f),
                     letterSpacing = 0.5.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "₹${String.format("%,.2f", totalSpending)}",
+                    text = "₹${String.format("%,.2f", netBalance)}",
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                     letterSpacing = (-1).sp
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Income",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = "+ ₹${String.format("%,.0f", totalIncome)}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "Expenses",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = "- ₹${String.format("%,.0f", totalSpending)}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
+                            .size(6.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF81C784))
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "$transactionCount transactions recorded",
+                        text = "$transactionCount total records",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.85f)
+                        color = Color.White.copy(alpha = 0.7f)
                     )
                 }
             }
@@ -420,7 +479,7 @@ private fun CategoryRow(catTotal: CategoryTotal, totalSpending: Double, trackCol
 // TRANSACTION ITEM
 // ═══════════════════════════════════════════════════════════
 @Composable
-private fun TransactionItem(expense: Expense, isDark: Boolean) {
+fun TransactionItem(expense: Expense, isDark: Boolean) {
     val cardColor = if (isDark) DarkSurfaceContainerLowest else SurfaceContainerLowest
     val dateFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
     val emoji = categoryEmojis[expense.category] ?: "📦"
@@ -461,9 +520,21 @@ private fun TransactionItem(expense: Expense, isDark: Boolean) {
                     maxLines = 1
                 )
                 Text(
-                    text = "${dateFormat.format(Date(expense.timestamp))} • ${expense.sourceApp}",
+                    text = buildString {
+                        append(dateFormat.format(Date(expense.timestamp)))
+                        if (expense.recipient.isNotBlank()) {
+                            append(" • ")
+                            append(if (expense.isCredit) "From: " else "To: ")
+                            append(expense.recipient)
+                        } else {
+                            append(" • ")
+                            append(expense.sourceApp)
+                        }
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -514,7 +585,6 @@ private fun EmptyState(isDark: Boolean) {
                 modifier = Modifier.padding(horizontal = 16.dp),
                 lineHeight = 20.sp
             )
-        }
         }
     }
 }
@@ -577,9 +647,15 @@ fun SmsVerificationModal(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    text = "₹${t.amount} from ${t.senderName}",
+                                    text = "₹${t.amount}",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "From: ${t.senderName}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
                                     text = t.dateString,

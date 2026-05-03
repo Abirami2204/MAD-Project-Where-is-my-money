@@ -24,6 +24,13 @@ class DashboardViewModel(
 
     val allExpenses: Flow<List<Expense>> = repository.getAllExpenses()
     val totalSpending: Flow<Double> = repository.getTotalSpending().map { it ?: 0.0 }
+    val totalIncome: Flow<Double> = repository.getTotalIncome().map { it ?: 0.0 }
+    
+    val netBalance: Flow<Double> = totalIncome.map { income ->
+        val spent = repository.getTotalSpending().first() ?: 0.0
+        income - spent
+    }
+    
     val categoryTotals: Flow<List<CategoryTotal>> = repository.getTotalSpendingByCategory()
 
     // SMS Sync states
@@ -60,7 +67,12 @@ class DashboardViewModel(
             _isSyncing.value = true
             val startAfter = prefs.lastSmsSyncTimestamp.first()
             val parsed = smsService.readAndParseSms(startAfter)
-            _scrapedTransactions.value = parsed
+            
+            // Filter out any that are already in our database
+            val existingIds = repository.getAllSyncedSmsIds()
+            val filtered = parsed.filterNot { it.id in existingIds }
+            
+            _scrapedTransactions.value = filtered
             _isSyncing.value = false
         }
     }
@@ -69,25 +81,43 @@ class DashboardViewModel(
         _scrapedTransactions.value = emptyList()
     }
 
-    fun saveScrapedTransactions(transactions: List<SmsTransaction>) {
+    fun saveScrapedTransactions(selected: List<SmsTransaction>) {
+        val allCurrent = _scrapedTransactions.value
+        
         viewModelScope.launch {
-            transactions.forEach { t ->
+            // 1. Save selected transactions
+            selected.forEach { t ->
+                val finalTimestamp = smsService.parseTransactionDate(t.dateString, t.timestampMs)
+                
                 val expense = Expense(
                     amount = t.amount,
-                    category = "Income", // Or Bank Transfer, since it's credited
-                    note = t.senderName.takeIf { it.isNotBlank() } ?: "SMS Sync",
+                    category = "Income", 
+                    note = t.senderName.trim(), // Removed [date] tag
+                    recipient = t.senderName.trim(), // Populate new recipient field
                     sourceApp = "SBI (SMS)",
                     isCredit = true,
-                    timestamp = t.timestampMs
+                    smsId = t.id, // Track SMS ID to prevent duplicates
+                    timestamp = finalTimestamp
                 )
                 repository.insertExpense(expense)
             }
             
-            // Advance the last sync timestamp to the highest one among the saved
-            if (transactions.isNotEmpty()) {
-                val latest = transactions.maxOf { it.timestampMs }
+            // 2. Smart Pointer Logic: Advance lastSyncDate but preserve gaps
+            // If the user skipped transactions, we advance the pointer ONLY to the 
+            // oldest skipped transaction so we find it again in the next sync.
+            val selectedIds = selected.map { it.id }.toSet()
+            val skipped = allCurrent.filterNot { it.id in selectedIds }
+            
+            if (skipped.isNotEmpty()) {
+                val oldestSkipped = skipped.minOf { it.timestampMs }
+                // Use oldest skipped - 1 to ensure it's captured by "date > ?" query next time
+                prefs.updateLastSmsSyncTimestamp(oldestSkipped - 1)
+            } else if (allCurrent.isNotEmpty()) {
+                // Everything saved, advance to the latest arrival time
+                val latest = allCurrent.maxOf { it.timestampMs }
                 prefs.updateLastSmsSyncTimestamp(latest)
             }
+            
             clearScrapedTransactions()
         }
     }

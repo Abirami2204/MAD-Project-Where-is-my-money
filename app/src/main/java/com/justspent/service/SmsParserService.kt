@@ -76,4 +76,32 @@ class SmsParserService(private val contentResolver: ContentResolver) {
         }
         return null
     }
+
+    /**
+     * Parses the date from the SMS body (e.g., "17Dec24") and combines it with 
+     * the time-of-day from the arrival timestamp to create a final Long epoch.
+     */
+    fun parseTransactionDate(dateStr: String, arrivalTimestamp: Long): Long {
+        return try {
+            // SBI date format: ddMMMyy (e.g. 17Dec24)
+            val sdf = java.text.SimpleDateFormat("ddMMMyy", java.util.Locale.US)
+            val parsedDate = sdf.parse(dateStr)
+            
+            if (parsedDate != null) {
+                val calendar = java.util.Calendar.getInstance().apply {
+                    time = parsedDate
+                    // Preserve the time-of-day from arrival stamp
+                    val arrivalCal = java.util.Calendar.getInstance().apply { timeInMillis = arrivalTimestamp }
+                    set(java.util.Calendar.HOUR_OF_DAY, arrivalCal.get(java.util.Calendar.HOUR_OF_DAY))
+                    set(java.util.Calendar.MINUTE, arrivalCal.get(java.util.Calendar.MINUTE))
+                    set(java.util.Calendar.SECOND, arrivalCal.get(java.util.Calendar.SECOND))
+                }
+                calendar.timeInMillis
+            } else {
+                arrivalTimestamp
+            }
+        } catch (e: Exception) {
+            arrivalTimestamp
+        }
+    }
 }

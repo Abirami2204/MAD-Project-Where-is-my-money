@@ -16,7 +16,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities = [Expense::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class ExpenseDatabase : RoomDatabase() {
@@ -33,6 +33,13 @@ abstract class ExpenseDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expenses ADD COLUMN recipient TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE expenses ADD COLUMN smsId TEXT")
+            }
+        }
+
         /**
          * Returns the singleton database instance, creating it if necessary.
          * Thread-safe via double-checked locking.
@@ -44,7 +51,7 @@ abstract class ExpenseDatabase : RoomDatabase() {
                     ExpenseDatabase::class.java,
                     "justspent_database"
                 )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
                 INSTANCE = instance
                 instance

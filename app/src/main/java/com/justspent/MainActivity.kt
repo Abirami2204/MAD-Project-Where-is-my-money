@@ -14,13 +14,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
-import com.justspent.service.ServiceController
-import com.justspent.ui.capture.ExpenseCaptureActivity
-import com.justspent.ui.dashboard.DashboardScreen
-import com.justspent.ui.dashboard.DashboardViewModel
-import com.justspent.ui.dashboard.DashboardViewModelFactory
 import com.justspent.ui.setup.UsageAccessScreen
 import com.justspent.ui.theme.JustSpentTheme
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.justspent.ui.history.TransactionHistoryScreen
+import com.justspent.ui.history.TransactionHistoryViewModel
+import com.justspent.ui.history.TransactionHistoryViewModelFactory
+import com.justspent.ui.dashboard.DashboardViewModel
+import com.justspent.ui.dashboard.DashboardViewModelFactory
+import com.justspent.ui.dashboard.DashboardScreen
+import com.justspent.service.ServiceController
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,14 +40,21 @@ class MainActivity : ComponentActivity() {
             DashboardViewModelFactory(app.repository, preferencesRepository, smsParserService)
         )[DashboardViewModel::class.java]
 
+        val historyViewModel = ViewModelProvider(
+            this,
+            TransactionHistoryViewModelFactory(app.repository)
+        )[TransactionHistoryViewModel::class.java]
+
         setContent {
             JustSpentTheme {
+                val navController = rememberNavController()
+                
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     var hasUsageAccess by remember {
-                        mutableStateOf(ServiceController.hasUsageAccessPermission(this))
+                        mutableStateOf<Boolean>(ServiceController.hasUsageAccessPermission(this))
                     }
 
                     if (!hasUsageAccess) {
@@ -51,7 +63,7 @@ class MainActivity : ComponentActivity() {
                         )
                     } else {
                         LaunchedEffect(Unit) {
-                            ServiceController.startMonitoring(this@MainActivity)
+                            com.justspent.service.ServiceController.startMonitoring(this@MainActivity)
 
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                                 if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -59,14 +71,30 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        DashboardScreen(
-                            viewModel = dashboardViewModel,
-                            onManualEntry = {
-                                val intent = Intent(this@MainActivity, ExpenseCaptureActivity::class.java)
-                                intent.putExtra("SOURCE_APP", "Manual")
-                                startActivity(intent)
+
+                        NavHost(navController = navController, startDestination = "dashboard") {
+                            composable("dashboard") {
+                                DashboardScreen(
+                                    viewModel = dashboardViewModel,
+                                    onManualEntry = {
+                                        val intent = Intent(this@MainActivity, com.justspent.ui.capture.ExpenseCaptureActivity::class.java)
+                                        intent.putExtra("SOURCE_APP", "Manual")
+                                        startActivity(intent)
+                                    },
+                                    onViewHistory = {
+                                        navController.navigate("history")
+                                    }
+                                )
                             }
-                        )
+                            composable("history") {
+                                TransactionHistoryScreen(
+                                    viewModel = historyViewModel,
+                                    onBack = {
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

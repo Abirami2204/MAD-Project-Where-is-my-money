@@ -34,13 +34,32 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
         return expenseDao.getTotalSpending()
     }
 
+    /** Reactive stream of total income. */
+    fun getTotalIncome(): Flow<Double?> {
+        return expenseDao.getTotalIncome()
+    }
+
     /** Reactive stream of spending totals grouped by category. */
     fun getTotalSpendingByCategory(): Flow<List<CategoryTotal>> {
         return expenseDao.getTotalSpendingByCategory()
     }
 
+    /** Advanced filtering for transaction history. */
+    fun getFilteredExpenses(
+        query: String = "",
+        category: String? = null,
+        isCredit: Boolean? = null,
+        startTime: Long = 0L,
+        endTime: Long = Long.MAX_VALUE
+    ): Flow<List<Expense>> {
+        return expenseDao.getFilteredExpenses(query, category, isCredit, startTime, endTime)
+    }
+
     /** Delete a single expense. */
     suspend fun deleteExpense(expense: Expense) {
         expenseDao.deleteExpense(expense)
+    }
+    suspend fun getAllSyncedSmsIds(): List<String> {
+        return expenseDao.getAllSyncedSmsIds()
     }
 }

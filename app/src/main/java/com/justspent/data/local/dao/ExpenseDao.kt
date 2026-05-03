@@ -38,20 +38,51 @@ interface ExpenseDao {
     fun getExpensesByDateRange(startTime: Long, endTime: Long): Flow<List<Expense>>
 
     /**
-     * Get the sum of all expense amounts. Returns null if no expenses exist.
+     * Get the sum of all expenses (debits). Returns null if no expenses exist.
      */
-    @Query("SELECT SUM(amount) FROM expenses")
+    @Query("SELECT SUM(amount) FROM expenses WHERE isCredit = 0")
     fun getTotalSpending(): Flow<Double?>
 
     /**
-     * Get total spending grouped by category, ordered by highest spending first.
+     * Get the sum of all income (credits). Returns null if no income exist.
      */
-    @Query("SELECT category, SUM(amount) as total FROM expenses GROUP BY category ORDER BY total DESC")
+    @Query("SELECT SUM(amount) FROM expenses WHERE isCredit = 1")
+    fun getTotalIncome(): Flow<Double?>
+
+    /**
+     * Get total spending grouped by category (expenses only), ordered by highest spending first.
+     */
+    @Query("SELECT category, SUM(amount) as total FROM expenses WHERE isCredit = 0 GROUP BY category ORDER BY total DESC")
     fun getTotalSpendingByCategory(): Flow<List<CategoryTotal>>
+
+    /**
+     * Advanced filtering for transaction history.
+     */
+    @Query("""
+        SELECT * FROM expenses 
+        WHERE (:category IS NULL OR category = :category)
+        AND (:isCredit IS NULL OR isCredit = :isCredit)
+        AND (note LIKE '%' || :query || '%' OR category LIKE '%' || :query || '%' OR recipient LIKE '%' || :query || '%')
+        AND (timestamp BETWEEN :startTime AND :endTime)
+        ORDER BY timestamp DESC
+    """)
+    fun getFilteredExpenses(
+        query: String = "",
+        category: String? = null,
+        isCredit: Boolean? = null,
+        startTime: Long = 0L,
+        endTime: Long = Long.MAX_VALUE
+    ): Flow<List<Expense>>
 
     /**
      * Delete a single expense.
      */
     @Delete
     suspend fun deleteExpense(expense: Expense)
+
+    /**
+     * Get all synced SMS IDs to avoid duplicates.
+     */
+    @Query("SELECT smsId FROM expenses WHERE smsId IS NOT NULL")
+    suspend fun getAllSyncedSmsIds(): List<String>
 }
