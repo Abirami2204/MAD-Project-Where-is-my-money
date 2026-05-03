@@ -7,13 +7,16 @@ import androidx.room.RoomDatabase
 import com.justspent.data.local.dao.ExpenseDao
 import com.justspent.data.local.entity.Expense
 
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
 /**
  * Room database for JustSpent.
  * Uses a singleton pattern to ensure only one instance exists app-wide.
  */
 @Database(
     entities = [Expense::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ExpenseDatabase : RoomDatabase() {
@@ -23,6 +26,12 @@ abstract class ExpenseDatabase : RoomDatabase() {
     companion object {
         @Volatile
         private var INSTANCE: ExpenseDatabase? = null
+        
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expenses ADD COLUMN isCredit INTEGER NOT NULL DEFAULT 0")
+            }
+        }
 
         /**
          * Returns the singleton database instance, creating it if necessary.
@@ -34,7 +43,9 @@ abstract class ExpenseDatabase : RoomDatabase() {
                     context.applicationContext,
                     ExpenseDatabase::class.java,
                     "justspent_database"
-                ).build()
+                )
+                .addMigrations(MIGRATION_1_2)
+                .build()
                 INSTANCE = instance
                 instance
             }

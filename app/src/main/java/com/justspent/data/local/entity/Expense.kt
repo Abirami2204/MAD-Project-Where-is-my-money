@@ -11,6 +11,7 @@ import androidx.room.PrimaryKey
  * @property category The expense category (e.g., "Food", "Transport").
  * @property note An optional user-provided note.
  * @property sourceApp The UPI app that triggered the capture (e.g., "Google Pay").
+ * @property isCredit True if this is an incoming transaction (credit), false if outgoing (debit/expense).
  * @property timestamp The time the expense was recorded, in epoch milliseconds.
  */
 @Entity(tableName = "expenses")
@@ -21,6 +22,7 @@ data class Expense(
     val category: String,
     val note: String = "",
     val sourceApp: String = "",
+    val isCredit: Boolean = false,
     val timestamp: Long = System.currentTimeMillis()
 )
 

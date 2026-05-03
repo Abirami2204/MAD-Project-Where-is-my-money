@@ -14,6 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,20 +26,31 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -74,7 +90,30 @@ fun DashboardScreen(
     val groupedExpenses by viewModel.groupedExpenses.collectAsState(initial = emptyMap())
     val allExpenses by viewModel.allExpenses.collectAsState(initial = emptyList())
 
+    val scrapedTransactions by viewModel.scrapedTransactions.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val lastSyncDate by viewModel.lastSyncDate.collectAsState(initial = 0L)
+
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            viewModel.syncSms()
+        }
+    }
+
     val isDark = isSystemInDarkTheme()
+
+    if (scrapedTransactions.isNotEmpty()) {
+        SmsVerificationModal(
+            transactions = scrapedTransactions,
+            onDismiss = { viewModel.clearScrapedTransactions() },
+            onSave = { selected ->
+                viewModel.saveScrapedTransactions(selected)
+            }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -100,7 +139,23 @@ fun DashboardScreen(
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
             // ─── Header ───
-            item { HeaderSection() }
+            item { 
+                HeaderSection(
+                    lastSyncDate = lastSyncDate,
+                    isSyncing = isSyncing,
+                    onSyncClicked = {
+                        val hasPerm = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.READ_SMS
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (hasPerm) {
+                            viewModel.syncSms()
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.READ_SMS)
+                        }
+                    }
+                ) 
+            }
 
             // ─── Hero Card: Total Spent ───
             item { TotalSpentCard(totalSpending, allExpenses.size, isDark) }
@@ -149,20 +204,65 @@ fun DashboardScreen(
 // HEADER
 // ═══════════════════════════════════════════════════════════
 @Composable
-private fun HeaderSection() {
-    Column {
-        Text(
-            text = "JustSpent",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            letterSpacing = (-0.5).sp
-        )
-        Text(
-            text = "Your financial sanctuary",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+private fun HeaderSection(
+    lastSyncDate: Long,
+    isSyncing: Boolean,
+    onSyncClicked: () -> Unit
+) {
+    val syncText = if (lastSyncDate == 0L) "Never Synced" else {
+        val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+        "Synced: ${sdf.format(Date(lastSyncDate))}"
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "JustSpent",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                letterSpacing = (-0.5).sp
+            )
+            Text(
+                text = "Your financial sanctuary",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        // Sync Button Area
+        Column(horizontalAlignment = Alignment.End) {
+            IconButton(
+                onClick = onSyncClicked,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                if (isSyncing) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Sync,
+                        contentDescription = "Sync SMS",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = syncText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
@@ -368,11 +468,13 @@ private fun TransactionItem(expense: Expense, isDark: Boolean) {
             }
 
             // Amount
+            val amountText = if (expense.isCredit) "+ ₹${String.format("%,.0f", expense.amount)}" else "- ₹${String.format("%,.0f", expense.amount)}"
+            val amountColor = if (expense.isCredit) Color(0xFF81C784) else MaterialTheme.colorScheme.onSurface
             Text(
-                text = "- ₹${String.format("%,.0f", expense.amount)}",
+                text = amountText,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = amountColor
             )
         }
     }
@@ -413,5 +515,97 @@ private fun EmptyState(isDark: Boolean) {
                 lineHeight = 20.sp
             )
         }
+        }
     }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SMS VERIFICATION MODAL
+// ═══════════════════════════════════════════════════════════
+@Composable
+fun SmsVerificationModal(
+    transactions: List<com.justspent.domain.model.SmsTransaction>,
+    onDismiss: () -> Unit,
+    onSave: (List<com.justspent.domain.model.SmsTransaction>) -> Unit
+) {
+    var selectedIds by remember { mutableStateOf(transactions.map { it.id }.toSet()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "${transactions.size} Sync Records",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        selectedIds = if (selectedIds.size == transactions.size) emptySet() else transactions.map { it.id }.toSet()
+                    },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = selectedIds.size == transactions.size && transactions.isNotEmpty(),
+                        onCheckedChange = null
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Select All", fontWeight = FontWeight.SemiBold)
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                    items(transactions, key = { it.id }) { t ->
+                        val isSelected = selectedIds.contains(t.id)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newSet = selectedIds.toMutableSet()
+                                    if (isSelected) newSet.remove(t.id) else newSet.add(t.id)
+                                    selectedIds = newSet
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(checked = isSelected, onCheckedChange = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "₹${t.amount} from ${t.senderName}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = t.dateString,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { 
+                    val selectedTransactions = transactions.filter { it.id in selectedIds }
+                    onSave(selectedTransactions) 
+                }
+            ) {
+                Text("Save Selected")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

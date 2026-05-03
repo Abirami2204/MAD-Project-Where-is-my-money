@@ -27,9 +27,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val app = application as JustSpentApp
+        val preferencesRepository = com.justspent.data.local.PreferencesRepository(this)
+        val smsParserService = com.justspent.service.SmsParserService(contentResolver)
+        
         val dashboardViewModel = ViewModelProvider(
             this,
-            DashboardViewModelFactory(app.repository)
+            DashboardViewModelFactory(app.repository, preferencesRepository, smsParserService)
         )[DashboardViewModel::class.java]
 
         setContent {
