@@ -85,4 +85,23 @@ interface ExpenseDao {
      */
     @Query("SELECT smsId FROM expenses WHERE smsId IS NOT NULL")
     suspend fun getAllSyncedSmsIds(): List<String>
+
+    /**
+     * Get total number of expense transactions (debits only).
+     */
+    @Query("SELECT COUNT(*) FROM expenses WHERE isCredit = 0")
+    fun getExpenseCount(): Flow<Int>
+
+    /**
+     * Get top recipients by total amount spent on them.
+     */
+    @Query("""
+        SELECT recipient, SUM(amount) as total, COUNT(*) as count 
+        FROM expenses 
+        WHERE recipient != '' 
+        GROUP BY recipient 
+        ORDER BY total DESC 
+        LIMIT :limit
+    """)
+    fun getTopRecipients(limit: Int = 5): Flow<List<com.justspent.domain.model.RecipientTotal>>
 }

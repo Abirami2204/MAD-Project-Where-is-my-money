@@ -15,7 +15,7 @@ class ExpenseCaptureActivity : ComponentActivity() {
         
         val viewModel = ViewModelProvider(
             this,
-            ExpenseCaptureViewModelFactory(app.repository, sourceApp)
+            ExpenseCaptureViewModelFactory(app, app.repository, sourceApp)
         )[ExpenseCaptureViewModel::class.java]
 
         setContent {

@@ -25,6 +25,9 @@ import com.justspent.ui.history.TransactionHistoryViewModelFactory
 import com.justspent.ui.dashboard.DashboardViewModel
 import com.justspent.ui.dashboard.DashboardViewModelFactory
 import com.justspent.ui.dashboard.DashboardScreen
+import com.justspent.ui.analytics.AnalyticsScreen
+import com.justspent.ui.analytics.AnalyticsViewModel
+import com.justspent.ui.analytics.AnalyticsViewModelFactory
 import com.justspent.service.ServiceController
 
 class MainActivity : ComponentActivity() {
@@ -44,6 +47,11 @@ class MainActivity : ComponentActivity() {
             this,
             TransactionHistoryViewModelFactory(app.repository)
         )[TransactionHistoryViewModel::class.java]
+
+        val analyticsViewModel = ViewModelProvider(
+            this,
+            AnalyticsViewModelFactory(app.repository)
+        )[AnalyticsViewModel::class.java]
 
         setContent {
             JustSpentTheme {
@@ -83,12 +91,23 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onViewHistory = {
                                         navController.navigate("history")
+                                    },
+                                    onViewAnalytics = {
+                                        navController.navigate("analytics")
                                     }
                                 )
                             }
                             composable("history") {
                                 TransactionHistoryScreen(
                                     viewModel = historyViewModel,
+                                    onBack = {
+                                        navController.popBackStack()
+                                    }
+                                )
+                            }
+                            composable("analytics") {
+                                AnalyticsScreen(
+                                    viewModel = analyticsViewModel,
                                     onBack = {
                                         navController.popBackStack()
                                     }

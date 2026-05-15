@@ -62,4 +62,14 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     suspend fun getAllSyncedSmsIds(): List<String> {
         return expenseDao.getAllSyncedSmsIds()
     }
+
+    /** Reactive stream of total expense transaction count. */
+    fun getExpenseCount(): kotlinx.coroutines.flow.Flow<Int> {
+        return expenseDao.getExpenseCount()
+    }
+
+    /** Top recipients by total spend. */
+    fun getTopRecipients(limit: Int = 5): Flow<List<com.justspent.domain.model.RecipientTotal>> {
+        return expenseDao.getTopRecipients(limit)
+    }
 }

@@ -27,11 +27,20 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +68,24 @@ fun ExpenseCaptureScreen(
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
         keyboardController?.show()
+    }
+    
+    val frequentRecipients by viewModel.frequentRecipients.collectAsState()
+    val contactSuggestions by viewModel.contactSuggestions.collectAsState()
+    
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted && viewModel.recipient.isNotBlank()) {
+            viewModel.loadContacts(viewModel.recipient)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
     }
 
     val categoryEmojis = mapOf(
@@ -175,6 +202,48 @@ fun ExpenseCaptureScreen(
                             ),
                             shape = RoundedCornerShape(20.dp)
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Recipient input
+                OutlinedTextField(
+                    value = viewModel.recipient,
+                    onValueChange = { viewModel.updateRecipient(it) },
+                    label = { Text("To / From") },
+                    placeholder = { Text("Person or Business") },
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Next
+                    ),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                val suggestionsToShow = if (viewModel.recipient.isBlank()) {
+                    frequentRecipients.map { it.recipient }
+                } else {
+                    contactSuggestions
+                }
+
+                if (suggestionsToShow.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        suggestionsToShow.forEach { recName ->
+                            SuggestionChip(
+                                onClick = { 
+                                    viewModel.updateRecipient(recName)
+                                    keyboardController?.hide()
+                                },
+                                label = { Text(recName, fontSize = 12.sp) },
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                        }
                     }
                 }
 

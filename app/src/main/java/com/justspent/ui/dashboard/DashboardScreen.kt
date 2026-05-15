@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -85,7 +86,8 @@ private val categoryEmojis = mapOf(
 fun DashboardScreen(
     viewModel: DashboardViewModel,
     onManualEntry: () -> Unit = {},
-    onViewHistory: () -> Unit = {}
+    onViewHistory: () -> Unit = {},
+    onViewAnalytics: () -> Unit = {}
 ) {
     val totalSpending by viewModel.totalSpending.collectAsState(initial = 0.0)
     val totalIncome by viewModel.totalIncome.collectAsState(initial = 0.0)
@@ -168,6 +170,53 @@ fun DashboardScreen(
             // ─── Category Breakdown ───
             if (categoryTotals.isNotEmpty()) {
                 item { CategoryBreakdown(categoryTotals, totalSpending, isDark) }
+            }
+
+            // ─── Analytics Shortcut ───
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onViewAnalytics() },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) DarkPrimaryContainer else PrimaryContainer
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Analytics,
+                            contentDescription = null,
+                            tint = if (isDark) DarkOnPrimaryContainer else OnPrimaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Spend Analytics",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isDark) DarkOnPrimaryContainer else OnPrimaryContainer
+                            )
+                            Text(
+                                text = "Charts, trends & insights",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isDark) DarkOnPrimaryContainer.copy(alpha = 0.7f) else OnPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                        }
+                        Text(
+                            text = "→",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = if (isDark) DarkOnPrimaryContainer else OnPrimaryContainer
+                        )
+                    }
+                }
             }
 
             // ─── Recent Transactions ───
